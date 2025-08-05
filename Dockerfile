@@ -25,3 +25,23 @@ FROM  grafana/grafana-oss:9.5.1
 
 USER root
 RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/build/*.js
+
+#Replace "Loading Grafana" to "Loading"
+RUN sed -i 's/Loading Grafana/Loading...           /g' /usr/share/grafana/public/views/*.html
+
+#Replace "Welcome to Grafana" to "Welcome to Analytics"
+RUN find /usr/share/grafana/public \
+  -type f \( \
+    -name "*.js" -o \
+  \) -exec sed -i 's/Welcome to Grafana/Welcome to Analytics/g' {} +
+
+#Replace "Grafana" to "Entgra" in Login Page
+RUN find /usr/share/grafana/public/build \
+  -type f \( \
+    -name "*.js" -o \
+  \) -exec sed -i 's/Grafana/Entgra/g' {} +
+
+#Change favicon and grafana icon
+COPY ./images/logo.svg /usr/share/grafana/public/img/grafana_icon.svg
+COPY ./images/logo-cropped.png /usr/share/grafana/public/img/fav32.png
+COPY ./images/logo-cropped.png /usr/share/grafana/public/img/apple-touch-icon.png
