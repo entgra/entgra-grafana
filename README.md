@@ -2,7 +2,7 @@
 
 1. Build the Docker image
 ```bash
-docker build -t registry.entgra.io/entgra-grafana:9.5.1-entgra-v1 -f Dockerfile .
+docker build -t registry.entgra.io/entgra-grafana:13.1.0-entgra-v1 -f Dockerfile .
 ```
 
 

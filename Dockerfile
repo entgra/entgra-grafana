@@ -19,29 +19,29 @@
 #
 # ------------------------------------------------------------------------
 
-FROM  grafana/grafana-oss:9.5.1
+FROM grafana/grafana:13.1.0
 
 # Replace the Cannot visualize data to Loading 
 
 USER root
-RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/build/*.js
 
-# Replace "Loading Grafana" to "Loading"
-RUN sed -i 's/Loading Grafana/Loading...           /g' /usr/share/grafana/public/views/*.html
+# Copy custom assets to a temporary location inside the container
+COPY ./images/logo.svg /tmp/logo.svg
+COPY ./images/logo-cropped.png /tmp/fav32.png
 
-# Replace "Welcome to Grafana" to "Welcome to Analytics"
-RUN find /usr/share/grafana/public \
-  -type f \( \
-    -name "*.js" -o \
-  \) -exec sed -i 's/Welcome to Grafana/Welcome to Analytics/g' {} +
+# Replace "Cannot visualize data" and "Welcome to Grafana"
+RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/locales/en-US/grafana.json && \
+    sed -i 's/Welcome to Grafana/Welcome to Analytics/g' /usr/share/grafana/public/locales/en-US/grafana.json
 
-# Replace "Grafana" to "Entgra" in Login Page
-RUN find /usr/share/grafana/public/build \
-  -type f \( \
-    -name "*.js" -o \
-  \) -exec sed -i 's/Grafana/Entgra/g' {} +
+# Replace "Grafana" with "Entgra" for general UI elements (like the Login Page)
+RUN sed -i 's/"Grafana"/"Entgra"/g' /usr/share/grafana/public/locales/en-US/grafana.json
 
-# Change favicon and grafana icon
-COPY ./images/logo.svg /usr/share/grafana/public/img/grafana_icon.svg
-COPY ./images/logo-cropped.png /usr/share/grafana/public/img/fav32.png
-COPY ./images/logo-cropped.png /usr/share/grafana/public/img/apple-touch-icon.png
+# Find every instance of the Grafana icon (including hashed ones like grafana_icon.1e0deb6b.svg) and overwrite it
+RUN find /usr/share/grafana/public -type f -name "grafana_icon*.svg" -exec cp /tmp/logo.svg {} \;
+
+# Overwrite all favicons and apple-touch icons
+RUN find /usr/share/grafana/public -type f -name "fav32.png" -exec cp /tmp/fav32.png {} \; && \
+    find /usr/share/grafana/public -type f -name "apple-touch-icon.png" -exec cp /tmp/fav32.png {} \;
+
+# Clean up temp files
+RUN rm /tmp/logo.svg /tmp/fav32.png
