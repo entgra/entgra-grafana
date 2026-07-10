@@ -19,37 +19,50 @@
 #
 # ------------------------------------------------------------------------
 
-FROM grafana/grafana:11.4.0
+FROM grafana/grafana:12.4.0
 
 USER root
 
-# Copy custom assets
+# Copy custom assets to a temporary location inside the container
 COPY ./images/logo.svg /tmp/logo.svg
 COPY ./images/logo-cropped.png /tmp/fav32.png
 
-# Update Locale Files
-RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/locales/en-US/grafana.json && \
-    sed -i 's/Welcome to Grafana/Welcome to Analytics/g' /usr/share/grafana/public/locales/en-US/grafana.json && \
-    sed -i 's/"Grafana"/"Entgra"/g' /usr/share/grafana/public/locales/en-US/grafana.json
+# Update the Default Home Dashboard
+RUN if [ -f /usr/share/grafana/public/dashboards/home.json ]; then \
+        sed -i 's/Welcome to Grafana/Welcome to Analytics/g' /usr/share/grafana/public/dashboards/home.json; \
+    fi
 
-# Surgical JS String Replacements
+# Update Locale Files
+RUN if [ -d /usr/share/grafana/public/locales ]; then \
+        find /usr/share/grafana/public/locales -type f -name "*.json" -exec sed -i \
+        -e 's/Cannot visualize data/Loading...           /g' \
+        -e 's/Welcome to Grafana/Welcome to Analytics/g' \
+        -e 's/"Grafana"/"Entgra"/g' {} + ; \
+    fi
+
+# Update Compiled JS Bundles
 RUN find /usr/share/grafana/public/build -type f -name "*.js" -exec sed -i \
     -e 's/Cannot visualize data/Loading...           /g' \
     -e 's/Welcome to Grafana/Welcome to Analytics/g' \
     -e 's/Login to Grafana/Login to Entgra/g' \
+    -e 's/" - Grafana"/" - Entgra"/g' \
+    -e "s/' - Grafana'/' - Entgra'/g" \
+    -e 's/` - Grafana`/` - Entgra`/g' \
+    -e 's/ - Grafana/ - Entgra/g' \
+    -e 's/Grafana - /Entgra - /g' \
     -e 's/>Grafana</>Entgra</g' \
-    -e 's/aria-label="Grafana"/aria-label="Entgra"/g' \
-    -e 's/title="Grafana"/title="Entgra"/g' {} +
+    -e 's/"Grafana"/"Entgra"/g' \
+    -e "s/'Grafana'/'Entgra'/g" {} +
 
-# Update initial HTML properties
+# Update HTML Template & BootData
 RUN sed -i 's/\[\[.AppTitle\]\]/Entgra Analytics/g' /usr/share/grafana/public/views/index.html || true && \
+    sed -i 's/"appTitle":"Grafana"/"appTitle":"Entgra Analytics"/g' /usr/share/grafana/public/views/index.html || true && \
     sed -i 's/<title>Grafana<\/title>/<title>Entgra Analytics<\/title>/g' /usr/share/grafana/public/views/index.html || true
-
-# Inject a Dynamic Tab-Title Script
-RUN sed -i 's/<\/body>/<script>const observer = new MutationObserver(() => { if (document.title.includes("Grafana")) { document.title = document.title.replace(\/Grafana\/g, "Entgra"); } }); observer.observe(document.querySelector("head"), { subtree: true, childList: true, characterData: true });<\/script><\/body>/g' /usr/share/grafana/public/views/index.html
 
 # Replace Icons
 RUN find /usr/share/grafana/public -type f -name "grafana_icon*.svg" -exec cp /tmp/logo.svg {} \;
+
+# Overwrite all favicons and apple-touch icons
 RUN find /usr/share/grafana/public -type f -name "fav32.png" -exec cp /tmp/fav32.png {} \; && \
     find /usr/share/grafana/public -type f -name "apple-touch-icon.png" -exec cp /tmp/fav32.png {} \;
 
