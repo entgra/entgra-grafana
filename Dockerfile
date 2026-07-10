@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------
 #
-# Copyright (C) 2018 - 2025 Entgra (Pvt) Ltd, Inc - All Rights Reserved.
+# Copyright (C) 2018 - 2026 Entgra (Pvt) Ltd, Inc - All Rights Reserved.
 #
 # Unauthorised copying/redistribution of this file, via any medium is strictly prohibited.
 #
@@ -19,29 +19,39 @@
 #
 # ------------------------------------------------------------------------
 
-FROM  grafana/grafana-oss:9.5.1
-
-# Replace the Cannot visualize data to Loading 
+FROM grafana/grafana:10.4.0
 
 USER root
-RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/build/*.js
 
-# Replace "Loading Grafana" to "Loading"
-RUN sed -i 's/Loading Grafana/Loading...           /g' /usr/share/grafana/public/views/*.html
+# Copy custom assets
+COPY ./images/logo.svg /tmp/logo.svg
+COPY ./images/logo-cropped.png /tmp/fav32.png
 
-# Replace "Welcome to Grafana" to "Welcome to Analytics"
-RUN find /usr/share/grafana/public \
-  -type f \( \
-    -name "*.js" -o \
-  \) -exec sed -i 's/Welcome to Grafana/Welcome to Analytics/g' {} +
+# Update Locale Files
+RUN sed -i 's/Cannot visualize data/Loading...           /g' /usr/share/grafana/public/locales/en-US/grafana.json && \
+    sed -i 's/Welcome to Grafana/Welcome to Analytics/g' /usr/share/grafana/public/locales/en-US/grafana.json && \
+    sed -i 's/"Grafana"/"Entgra"/g' /usr/share/grafana/public/locales/en-US/grafana.json
 
-# Replace "Grafana" to "Entgra" in Login Page
-RUN find /usr/share/grafana/public/build \
-  -type f \( \
-    -name "*.js" -o \
-  \) -exec sed -i 's/Grafana/Entgra/g' {} +
+# Surgical JS String Replacements
+RUN find /usr/share/grafana/public/build -type f -name "*.js" -exec sed -i \
+    -e 's/Cannot visualize data/Loading...           /g' \
+    -e 's/Welcome to Grafana/Welcome to Analytics/g' \
+    -e 's/Login to Grafana/Login to Entgra/g' \
+    -e 's/>Grafana</>Entgra</g' \
+    -e 's/aria-label="Grafana"/aria-label="Entgra"/g' \
+    -e 's/title="Grafana"/title="Entgra"/g' {} +
 
-# Change favicon and grafana icon
-COPY ./images/logo.svg /usr/share/grafana/public/img/grafana_icon.svg
-COPY ./images/logo-cropped.png /usr/share/grafana/public/img/fav32.png
-COPY ./images/logo-cropped.png /usr/share/grafana/public/img/apple-touch-icon.png
+# Update initial HTML properties
+RUN sed -i 's/\[\[.AppTitle\]\]/Entgra Analytics/g' /usr/share/grafana/public/views/index.html || true && \
+    sed -i 's/<title>Grafana<\/title>/<title>Entgra Analytics<\/title>/g' /usr/share/grafana/public/views/index.html || true
+
+# Inject a Dynamic Tab-Title Script
+RUN sed -i 's/<\/body>/<script>const observer = new MutationObserver(() => { if (document.title.includes("Grafana")) { document.title = document.title.replace(\/Grafana\/g, "Entgra"); } }); observer.observe(document.querySelector("head"), { subtree: true, childList: true, characterData: true });<\/script><\/body>/g' /usr/share/grafana/public/views/index.html
+
+# Replace Icons
+RUN find /usr/share/grafana/public -type f -name "grafana_icon*.svg" -exec cp /tmp/logo.svg {} \;
+RUN find /usr/share/grafana/public -type f -name "fav32.png" -exec cp /tmp/fav32.png {} \; && \
+    find /usr/share/grafana/public -type f -name "apple-touch-icon.png" -exec cp /tmp/fav32.png {} \;
+
+# Clean up temp files
+RUN rm /tmp/logo.svg /tmp/fav32.png
